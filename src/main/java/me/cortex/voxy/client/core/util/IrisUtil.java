@@ -2,6 +2,7 @@ package me.cortex.voxy.client.core.util;
 
 import me.cortex.voxy.client.core.VoxyRenderSystem;
 import me.cortex.voxy.client.core.rendering.Viewport;
+import me.cortex.voxy.common.Logger;
 import net.caffeinemc.mods.sodium.client.render.chunk.ChunkRenderMatrices;
 import net.caffeinemc.mods.sodium.client.util.FogParameters;
 import net.fabricmc.loader.api.FabricLoader;
@@ -9,6 +10,7 @@ import net.irisshaders.iris.Iris;
 import net.irisshaders.iris.api.v0.IrisApi;
 import net.irisshaders.iris.gl.IrisRenderSystem;
 import net.irisshaders.iris.shadows.ShadowRenderer;
+import org.lwjgl.opengl.GL33;
 
 import java.io.IOException;
 
@@ -52,9 +54,23 @@ public class IrisUtil {
         }
     }
 
+    //Some drivers (Intel Iris Xe on Mesa) leave Iris's sampler cache uninitialized, see #666
+    private static boolean IRIS_SAMPLER_CACHE_MISSING;
     private static void clearIrisSamplers0() {
+        if (!IRIS_SAMPLER_CACHE_MISSING) {
+            try {
+                for (int i = 0; i < 16; i++) {
+                    IrisRenderSystem.bindSamplerToUnit(i, 0);
+                }
+                return;
+            } catch (NullPointerException e) {
+                Logger.warn("Iris sampler cache is not initialized, unbinding samplers directly");
+                IRIS_SAMPLER_CACHE_MISSING = true;
+            }
+        }
+        //Iris is not tracking sampler bindings, so binding through GL directly cannot desync it
         for (int i = 0; i < 16; i++) {
-            IrisRenderSystem.bindSamplerToUnit(i, 0);
+            GL33.glBindSampler(i, 0);
         }
     }
 
