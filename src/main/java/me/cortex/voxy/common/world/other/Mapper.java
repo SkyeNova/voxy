@@ -353,6 +353,12 @@ public class Mapper {
         // while every later migration still runs, including block renames and
         // BlockStateFieldNamesFix (5006, Name/Properties -> id/properties).
         static final int UNVERSIONED_BLOCK_STATE_DATA_VERSION = 2531;
+        // 2531 is only safe as a last resort. Every unversioned mapping parsed on whatever
+        // version last loaded it, which for anyone coming from 26.2 is 4903, so try the newest
+        // baselines first. Fixing a 26.2 mapping from 2531 reruns the 1.17 copper rename and
+        // turns weathered copper into oxidized copper. Older baselines are only tried if the
+        // newer one does not decode, e.g. a 1.20 mapping still named minecraft:grass.
+        static final int[] UNVERSIONED_BLOCK_STATE_BASELINES = {4903, 3465, UNVERSIONED_BLOCK_STATE_DATA_VERSION};
         private static final String DATA_VERSION_KEY = "data_version";
 
         public StateEntry(int id, BlockState state) {
@@ -403,8 +409,7 @@ public class Mapper {
                         dataFixed = true;
                     }
                 } else if (isLegacyNameProperties(bsc)) {
-                    Logger.info("Upgrading saved blockstate from data version " + UNVERSIONED_BLOCK_STATE_DATA_VERSION);
-                    bsc = fixBlockState(bsc, UNVERSIONED_BLOCK_STATE_DATA_VERSION, currentVersion);
+                    bsc = fixLegacyBlockState(bsc, currentVersion);
                     dataFixed = true;
                 }
 
@@ -440,6 +445,22 @@ public class Mapper {
                 return false;
             }
             return compound.contains("Name") && !compound.contains("id");
+        }
+
+        private static Tag fixLegacyBlockState(Tag blockState, int currentVersion) {
+            Tag fixed = null;
+            for (int baseline : UNVERSIONED_BLOCK_STATE_BASELINES) {
+                fixed = fixBlockState(blockState, baseline, currentVersion);
+                var result = BlockState.CODEC.parse(NbtOps.INSTANCE, fixed);
+                if (result.isSuccess() && !result.getOrThrow().isAir()) {
+                    if (baseline != UNVERSIONED_BLOCK_STATE_BASELINES[0]) {
+                        Logger.info("Upgraded saved blockstate " + blockState + " from fallback data version " + baseline);
+                    }
+                    return fixed;
+                }
+            }
+            //Nothing decoded, let the caller report the last attempt
+            return fixed;
         }
 
         private static Tag fixBlockState(Tag blockState, int fromVersion, int toVersion) {

@@ -428,6 +428,7 @@ tasks.named("test") {
     useJUnitPlatform()
     maxHeapSize = "3g"
     systemProperty "java.awt.headless", "true"
+    systemProperty "voxy.realdata", System.getProperty("voxy.realdata", "")
     testLogging {
         events "passed", "failed", "skipped"
         exceptionFormat = "full"

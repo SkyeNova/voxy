@@ -196,6 +196,26 @@ public class MapperBlockStateMigrationTest {
         assertUpgraded(storage.get(blockKey(2)), 2, Blocks.STONE.defaultBlockState());
     }
 
+    @Test
+    void unversionedCopperKeepsItsOxidationStage() throws IOException {
+        // From 2531 the 1.17 copper rename runs again and weathered becomes oxidized.
+        BlockState weathered = block("minecraft:weathered_cut_copper_slab");
+        assertEquals(block("minecraft:oxidized_cut_copper_slab"), roundTrip(weathered, Mapper.StateEntry.UNVERSIONED_BLOCK_STATE_DATA_VERSION));
+
+        boolean[] resave = new boolean[1];
+        var entry = Mapper.StateEntry.deserialize(7, writeRoot(legacyRoot(7, weathered)), resave);
+        assertEquals(weathered, entry.state);
+        assertTrue(resave[0]);
+    }
+
+    @Test
+    void unversionedOldNamesStillFallBackToOlderBaselines() throws IOException, CommandSyntaxException {
+        // Written on 1.20, never loaded on a later version, so it fails from the 26.2 baseline
+        boolean[] resave = new boolean[1];
+        var entry = Mapper.StateEntry.deserialize(8, writeRoot(rootWithState(8, TagParser.parseCompoundFully("{Name:\"minecraft:grass\"}"))), resave);
+        assertEquals(Blocks.SHORT_GRASS.defaultBlockState(), entry.state);
+    }
+
     private static void assertUpgraded(byte[] data, int id, BlockState expected) throws IOException {
         CompoundTag compound = read(data);
         assertEquals(id, compound.getIntOr("id", -1));
@@ -211,6 +231,10 @@ public class MapperBlockStateMigrationTest {
 
     private static BlockState parseState(CompoundTag root) {
         return parse(root.get("block_state"));
+    }
+
+    private static BlockState block(String id) {
+        return BuiltInRegistries.BLOCK.getValue(net.minecraft.resources.Identifier.parse(id)).defaultBlockState();
     }
 
     private static BlockState oakStairs() {
