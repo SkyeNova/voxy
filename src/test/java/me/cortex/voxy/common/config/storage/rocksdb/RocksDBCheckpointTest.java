@@ -27,8 +27,15 @@ public class RocksDBCheckpointTest {
                     .max(Comparator.comparingLong(RocksDBCheckpointTest::size)).orElse(null);
         }
         Assumptions.assumeTrue(db != null);
-        Path snap = db.resolveSibling("storage-snapshot-test");
-        deleteTree(snap);
+        //Work on a private copy, the test writes to the database
+        Path work = Files.createTempDirectory(Path.of(root), "checkpoint-test");
+        Path src = db;
+        db = work.resolve("storage");
+        Files.createDirectories(db);
+        try (var files = Files.list(src)) {
+            for (var f : files.toList()) if (Files.isRegularFile(f)) Files.copy(f, db.resolve(f.getFileName().toString()));
+        }
+        Path snap = work.resolve("storage-snapshot-test");
 
         int marker = (1 << 30) | 0x3FFFFFF0;
         var live = new RocksDBStorageBackend(db.toString());
@@ -61,6 +68,7 @@ public class RocksDBCheckpointTest {
         var reopened = new RocksDBStorageBackend(db.toString());
         assertEquals(before + 1, reopened.getIdMappingsData().size(), "live database damaged by deleting the snapshot");
         reopened.close();
+        deleteTree(work);
     }
 
     private static long size(Path dir) {
