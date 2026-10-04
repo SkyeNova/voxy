@@ -22,15 +22,19 @@ public class VoxyClientInstance extends VoxyInstance {
     private final Config config;
     private final Path basePath;
     private final boolean noIngestOverride;
+    private final boolean backupFailed;
 
     public VoxyClientInstance() {
         {
             var path = FlashbackCompat.getReplayStoragePath();
-            this.noIngestOverride = path != null;
+            boolean isReplay = path != null;
+            this.noIngestOverride = isReplay;
             if (path == null) {
                 path = getBasePath();
             }
             var basePath = this.basePath = path.normalize();
+            //Replays bring their own storage, only back up the players own data
+            this.backupFailed = !isReplay && !VoxyDataBackup.backupIfNeeded(basePath);
             this.config = StorageConfigUtil.getCreateStorageConfig(Config.class, c->c.version==1&&c.sectionStorageConfig!=null, ()->DEFAULT_STORAGE_CONFIG, basePath);
         }
         super();
@@ -39,7 +43,7 @@ public class VoxyClientInstance extends VoxyInstance {
 
     @Override
     protected boolean shouldCreateInstance() {
-        return !this.config.disabled;
+        return !this.config.disabled && !this.backupFailed;
     }
 
     @Override

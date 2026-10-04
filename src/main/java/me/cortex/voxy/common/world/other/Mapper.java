@@ -464,9 +464,16 @@ public class Mapper {
         }
 
         private static Tag fixBlockState(Tag blockState, int fromVersion, int toVersion) {
-            return DataFixers.getDataFixer()
-                    .update(References.BLOCK_STATE, new Dynamic<>(NbtOps.INSTANCE, blockState), fromVersion, toVersion)
-                    .getValue();
+            try {
+                return DataFixers.getDataFixer()
+                        .update(References.BLOCK_STATE, new Dynamic<>(NbtOps.INSTANCE, blockState), fromVersion, toVersion)
+                        .getValue();
+            } catch (Exception e) {
+                // The datafixer can throw on unknown or modded data, e.g. after a mod was removed.
+                // Hand back the original tag, it then fails to decode and stays air in memory only.
+                Logger.error("Datafixer threw while upgrading blockstate " + blockState + " from data version " + fromVersion, e);
+                return blockState;
+            }
         }
 
         private static int currentDataVersion() {
