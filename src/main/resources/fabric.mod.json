@@ -6,10 +6,15 @@
     "commit": "${commit}",
     "buildtime": "${buildtime}"
   },
-  "name": "Voxy",
-  "description": "Far distance rendering mod utilising LoDs",
+  "name": "Voxy (updated by Skye)",
+  "description": "Far distance rendering mod utilising LoDs
+
+Unofficial 26.3 build updated by Skye, with safe world-data migration and automatic backups. Replace with the official release once it is out.",
   "authors": [
     "Cortex"
+  ],
+  "contributors": [
+    "Skye"
   ],
   "contact": {
   },
