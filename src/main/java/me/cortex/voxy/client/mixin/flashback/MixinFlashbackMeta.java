@@ -14,6 +14,7 @@ import java.io.File;
 @Mixin(value = FlashbackMeta.class, remap = false)
 public class MixinFlashbackMeta implements IFlashbackMeta {
     @Unique private File voxyPath;
+    @Unique private File voxySnapshotPath;
 
     @Override
     public void setVoxyPath(File path) {
@@ -25,11 +26,24 @@ public class MixinFlashbackMeta implements IFlashbackMeta {
         return this.voxyPath;
     }
 
+    @Override
+    public void setVoxySnapshotPath(File path) {
+        this.voxySnapshotPath = path;
+    }
+
+    @Override
+    public File getVoxySnapshotPath() {
+        return this.voxySnapshotPath;
+    }
+
     @Inject(method = "toJson", at = @At("RETURN"))
     private void voxy$injectSaveVoxyPath(CallbackInfoReturnable<JsonObject> cir) {
         var val = cir.getReturnValue();
         if (val != null && this.voxyPath != null) {
             val.addProperty("voxy_storage_path", this.voxyPath.getAbsoluteFile().getPath());
+        }
+        if (val != null && this.voxySnapshotPath != null) {
+            val.addProperty("voxy_snapshot_path", this.voxySnapshotPath.getAbsoluteFile().getPath());
         }
     }
 
@@ -39,6 +53,9 @@ public class MixinFlashbackMeta implements IFlashbackMeta {
         if (val != null && meta != null) {
             if (meta.has("voxy_storage_path")) {
                 ((IFlashbackMeta)val).setVoxyPath(new File(meta.get("voxy_storage_path").getAsString()));
+            }
+            if (meta.has("voxy_snapshot_path")) {
+                ((IFlashbackMeta)val).setVoxySnapshotPath(new File(meta.get("voxy_snapshot_path").getAsString()));
             }
         }
     }

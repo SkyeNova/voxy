@@ -23,6 +23,14 @@ public class FlashbackCompat {
         if (replayServer != null) {
             FlashbackMeta meta = replayServer.getMetadata();
             if (meta != null) {
+                var snapshot = ((IFlashbackMeta)meta).getVoxySnapshotPath();
+                if (snapshot != null) {
+                    if (snapshot.isDirectory()) {
+                        Logger.info("Using the voxy snapshot taken when this replay was recorded");
+                        return snapshot.toPath();
+                    }
+                    Logger.warn("Replay has a voxy snapshot path but it does not exist, using the live voxy data instead");
+                }
                 var path = ((IFlashbackMeta)meta).getVoxyPath();
                 if (path != null) {
                     Logger.info("Flashback replay server exists and meta exists");

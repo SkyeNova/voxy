@@ -1,6 +1,7 @@
 package me.cortex.voxy.client;
 
 import me.cortex.voxy.client.compat.FlashbackCompat;
+import me.cortex.voxy.client.compat.ReplayVoxySnapshots;
 import me.cortex.voxy.client.config.VoxyConfig;
 import me.cortex.voxy.client.core.RenderResourceReuse;
 import me.cortex.voxy.client.mixin.sodium.AccessorSodiumWorldRenderer;
@@ -38,6 +39,7 @@ public class VoxyClientInstance extends VoxyInstance {
         }
         super();
         this.updateDedicatedThreads();
+        ReplayVoxySnapshots.cleanupOrphansAsync();
     }
 
     @Override

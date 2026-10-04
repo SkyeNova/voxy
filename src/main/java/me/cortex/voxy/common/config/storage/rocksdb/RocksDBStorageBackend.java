@@ -11,13 +11,19 @@ import org.lwjgl.system.MemoryUtil;
 import org.rocksdb.*;
 
 import java.nio.ByteBuffer;
+import java.nio.file.Path;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.function.LongConsumer;
 
 public class RocksDBStorageBackend extends StorageBackend {
+    //Open databases by their normalized directory, so a replay snapshot can checkpoint a live database
+    private static final ConcurrentHashMap<Path, RocksDBStorageBackend> OPEN = new ConcurrentHashMap<>();
+
     private final RocksDB db;
+    private final Path path;
     private final ColumnFamilyHandle worldSections;
     private final ColumnFamilyHandle idMappings;
     private final ReadOptions sectionReadOps;
@@ -49,6 +55,7 @@ public class RocksDBStorageBackend extends StorageBackend {
             }
         }
          */
+        this.path = Path.of(path).toAbsolutePath().normalize();
         RocksDB.loadLibrary();
 
         //TODO: FIXME: DONT USE THE SAME options PER COLUMN FAMILY
@@ -108,6 +115,7 @@ public class RocksDBStorageBackend extends StorageBackend {
             this.closeList.addAll(handles);
 
             this.worldSections = handles.get(1);
+            OPEN.put(this.path, this);
             this.idMappings = handles.get(2);
 
             this.db.flushWal(true);
@@ -222,8 +230,27 @@ public class RocksDBStorageBackend extends StorageBackend {
         }
     }
 
+    /**
+     * The open database at that directory, or null if it is not open in this process
+     */
+    public static RocksDBStorageBackend getOpen(Path dir) {
+        return OPEN.get(dir.toAbsolutePath().normalize());
+    }
+
+    /**
+     * Writes a consistent point in time copy of this database to target, which must not exist yet.
+     * SST files are hard linked when on the same filesystem, so unchanged data is shared and not duplicated.
+     */
+    public synchronized void createCheckpoint(Path target) throws RocksDBException {
+        this.db.flushWal(true);
+        try (var checkpoint = Checkpoint.create(this.db)) {
+            checkpoint.createCheckpoint(target.toAbsolutePath().toString());
+        }
+    }
+
     @Override
-    public void close() {
+    public synchronized void close() {
+        OPEN.remove(this.path, this);
         this.flush();
         //this.db.cancelAllBackgroundWork(true);//Rocksdb does this automatically (afak)
         this.closeList.forEach(AbstractImmutableNativeReference::close);

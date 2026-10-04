@@ -30,6 +30,8 @@ public class VoxyConfig {
     public boolean enabled = true;
     public boolean enableRendering = true;
     public boolean ingestEnabled = true;
+    //Snapshot the voxy data when a flashback recording finishes, so the replay keeps the terrain as it was
+    public boolean flashbackVoxySnapshots = true;
     public float sectionRenderDistance = 16;
     public int serviceThreads = (int) Math.max(CpuLayout.getCoreCount()/1.5, 1);
     public float subDivisionSize = 64;
